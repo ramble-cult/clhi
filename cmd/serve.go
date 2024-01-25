@@ -21,8 +21,8 @@ func init() {
 
 var serve = &cobra.Command{
 	Use:   "serve",
-	Short: "Print the version number of Hugo",
-	Long:  `All software has versions. This is Hugo's`,
+	Short: "serve -H <host> -p <password>",
+	Long:  `serve -H <host> -p <password>`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := chat.SignalContext(context.Background())
 		chat.Server(serverHost, serverPassword).Run(ctx)
