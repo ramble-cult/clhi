@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	chat "github.com/rodaine/grpc-chat/protos"
+	chat "github.com/ramble-cult/clhi/protos"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

@@ -8,7 +8,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	host     string
+	password string
+	username string
+)
+
 func init() {
+	login.Flags().StringVarP(&host, "host", "H", "0.0.0.0:3000", "Chat server host")
+	login.Flags().StringVarP(&password, "password", "p", "", "User password")
+	login.Flags().StringVarP(&username, "username", "u", "", "Username")
 	rootCmd.AddCommand(login)
 }
 
@@ -18,7 +27,7 @@ var login = &cobra.Command{
 	Long:  `All software has versions. This is Hugo's`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := chat.SignalContext(context.Background())
-		chat.Client("localhost", "password", "username").Run(ctx)
+		chat.Client(host, password, username).Run(ctx)
 		fmt.Println("you have logged in")
 	},
 }
