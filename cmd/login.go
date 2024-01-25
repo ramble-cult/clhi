@@ -15,7 +15,7 @@ var (
 )
 
 func init() {
-	login.Flags().StringVarP(&host, "host", "H", "0.0.0.0:3000", "Chat server host")
+	login.Flags().StringVarP(&host, "host", "H", "0.0.0.0:50051", "Chat server host")
 	login.Flags().StringVarP(&password, "password", "p", "", "User password")
 	login.Flags().StringVarP(&username, "username", "u", "", "Username")
 	rootCmd.AddCommand(login)

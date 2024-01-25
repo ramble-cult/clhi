@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	serve.Flags().StringVarP(&serverHost, "serverhost", "s", "0.0.0.0:3000", "server host")
+	serve.Flags().StringVarP(&serverHost, "serverhost", "H", "0.0.0.0:50051", "server host")
 	serve.Flags().StringVarP(&serverPassword, "password", "p", "", "server password")
 	rootCmd.AddCommand(serve)
 }
