@@ -83,7 +83,6 @@ func (c *client) Start(ctx context.Context) error {
 		}
 	}
 	return nil
-	// Create the group
 }
 
 func (c *client) sendMessageLoop(ctx context.Context) {
@@ -94,12 +93,10 @@ func (c *client) sendMessageLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			// Continuously listen for user input
 			fmt.Print("Enter message: ")
 			scanner.Scan()
 			text := scanner.Text()
 
-			// Send the message within the group
 			msg := &chat.Message{Username: c.Name, Message: text}
 			_, err := c.BroadcastClient.DirectMessage(ctx, msg)
 			if err != nil {

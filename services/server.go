@@ -173,7 +173,6 @@ func (s *server) Start(ctx context.Context) error {
 
 	fmt.Printf("Server started at %v", s.Host)
 
-	// Start serving requests at port 8080
 	if err := rpc.Serve(l); err != nil {
 		return err
 	}
