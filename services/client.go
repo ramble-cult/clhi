@@ -3,30 +3,36 @@ package services
 import (
 	"bufio"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"time"
 
 	"golang.org/x/net/context"
 
+	"github.com/pkg/errors"
 	chat "github.com/ramble-cult/clhi/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
-type client struct {
+type Client struct {
 	chat.BroadcastClient
 	Host, Password, Name, Token, GroupName string
 	Shutdown                               bool
 }
 
-func Client(host, pass, name string) *client {
-	return &client{
+func NewClient(host, pass, name string) *Client {
+	return &Client{
 		Host:     host,
 		Password: pass,
 		Name:     name,
 	}
 }
 
-func (c *client) Start(ctx context.Context) error {
+func (c *Client) Start(ctx context.Context) error {
 	connCtx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 
@@ -42,6 +48,9 @@ func (c *client) Start(ctx context.Context) error {
 		return err
 	}
 
+	md := metadata.New(map[string]string{"user-token": c.Token})
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
 	chatting := false
 	for !chatting {
 
@@ -49,7 +58,7 @@ func (c *client) Start(ctx context.Context) error {
 		fmt.Scanln(&cmd)
 		switch cmd {
 		case "ls":
-			u, err := c.listUsers(ctx)
+			u, err := c.ListUsers(ctx)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -58,55 +67,56 @@ func (c *client) Start(ctx context.Context) error {
 			}
 		case "c":
 
-			_, err = c.BroadcastClient.CreateGroupStream(ctx, &chat.CreateGroup{Name: "hera&caleb", Password: "test", Users: []string{"hera", "caleb"}})
+			_, err = c.BroadcastClient.CreateGroup(ctx, &chat.CreateGroupReq{Name: "test", Password: "test", Users: []string{}})
 			if err != nil {
 				fmt.Println("Error creating group:", err)
 				return err
 			}
 			fmt.Println("Group created successfully")
-
-			// Start a goroutine to continuously send messages
-			go c.sendMessageLoop(ctx)
-
-			// Wait for the user to exit the application
-			<-ctx.Done()
 		case "j":
-			fmt.Print("Enter group name to join: ")
+			fmt.Println("Enter group name to join: ")
 			fmt.Scanln(&c.GroupName)
-			_, err := c.BroadcastClient.JoinGroup(ctx, &chat.JoinGroupReq{Name: c.GroupName, User: c.Name})
+			_, err := c.BroadcastClient.JoinGroup(ctx, &chat.JoinReq{Name: "test", User: c.Name})
 			if err != nil {
 				fmt.Println("Error joining group:", err)
 			} else {
 				fmt.Println("Joined group successfully")
-				go c.sendMessageLoop(ctx)
+				chatting = true
 			}
 		}
 	}
-	return nil
-}
 
-func (c *client) sendMessageLoop(ctx context.Context) {
-	scanner := bufio.NewScanner(os.Stdin)
+	err = c.stream(ctx)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			fmt.Print("Enter message: ")
-			scanner.Scan()
-			text := scanner.Text()
+	// _, err = c.BroadcastClient.CreateGroup(ctx, &chat.CreateGroupReq{Name: "test", Password: "test", Users: []string{}})
+	// c.GroupName = "test"
 
-			msg := &chat.Message{Username: c.Name, Message: text}
-			_, err := c.BroadcastClient.DirectMessage(ctx, msg)
-			if err != nil {
-				fmt.Println("Error sending message:", err)
-			}
-		}
+	if err != nil {
+		fmt.Println(err)
 	}
+
+	return errors.WithMessage(err, "stream error")
 }
 
-func (c *client) listUsers(ctx context.Context) ([]string, error) {
+func (c *Client) JoinGroup(ctx context.Context, group string) error {
+	c.BroadcastClient.JoinGroup(ctx, &chat.JoinReq{Name: group, User: c.Name})
+	err := c.stream(ctx)
+
+	return err
+}
+
+func (c *Client) CreateGroup(ctx context.Context, group string) error {
+	_, err := c.BroadcastClient.CreateGroup(ctx, &chat.CreateGroupReq{Name: group, Password: "test", Users: []string{}})
+	if err != nil {
+		fmt.Println("Error creating group:", err)
+		return err
+	}
+	fmt.Println("Group created successfully")
+
+	return err
+}
+
+func (c *Client) ListUsers(ctx context.Context) ([]string, error) {
 	u, err := c.BroadcastClient.ListUsers(ctx, &chat.ListUsersReq{Token: c.Token})
 	if err != nil {
 		return nil, err
@@ -120,7 +130,7 @@ func (c *client) listUsers(ctx context.Context) ([]string, error) {
 	return users, nil
 }
 
-func (c *client) login(ctx context.Context) (string, error) {
+func (c *Client) login(ctx context.Context) (string, error) {
 	res, err := c.BroadcastClient.Login(ctx, &chat.User{
 		Name:     c.Name,
 		Host:     c.Host,
@@ -131,4 +141,59 @@ func (c *client) login(ctx context.Context) (string, error) {
 	}
 
 	return res.Token, nil
+}
+
+func (c *Client) stream(ctx context.Context) error {
+	md := metadata.New(map[string]string{"user-token": c.Token, "user-group": c.GroupName})
+	ctx = metadata.NewOutgoingContext(ctx, md)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	client, err := c.BroadcastClient.Stream(ctx)
+	if err != nil {
+		return err
+	}
+	defer client.CloseSend()
+
+	fmt.Printf("%v connected to stream", time.Now())
+	go c.send(client)
+	return c.receive(client)
+}
+
+func (c *Client) receive(sc chat.Broadcast_StreamClient) error {
+	for {
+		res, err := sc.Recv()
+
+		if s, ok := status.FromError(err); ok && s.Code() == codes.Canceled {
+			return nil
+		} else if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+
+		log.Printf("%s:%s", res.Username, res.Message)
+	}
+}
+
+func (c *Client) send(client chat.Broadcast_StreamClient) {
+	sc := bufio.NewScanner(os.Stdin)
+	sc.Split(bufio.ScanLines)
+
+	for {
+		select {
+		case <-client.Context().Done():
+			// DebugLogf("client send loop disconnected")
+		default:
+			if sc.Scan() {
+				if err := client.Send(&chat.Message{Username: c.Name, Message: sc.Text()}); err != nil {
+					// ClientLogf(time.Now(), "failed to send message: %v", err)
+					return
+				}
+			} else {
+				// ClientLogf(time.Now(), "input scanner failure: %v", sc.Err())
+				return
+			}
+		}
+	}
 }

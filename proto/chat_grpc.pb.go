@@ -22,12 +22,11 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BroadcastClient interface {
-	CreateGroupStream(ctx context.Context, in *CreateGroup, opts ...grpc.CallOption) (Broadcast_CreateGroupStreamClient, error)
-	DirectMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (Broadcast_DirectMessageClient, error)
-	JoinGroup(ctx context.Context, in *JoinGroupReq, opts ...grpc.CallOption) (Broadcast_JoinGroupClient, error)
+	Stream(ctx context.Context, opts ...grpc.CallOption) (Broadcast_StreamClient, error)
+	CreateGroup(ctx context.Context, in *CreateGroupReq, opts ...grpc.CallOption) (*CreateResponse, error)
+	JoinGroup(ctx context.Context, in *JoinReq, opts ...grpc.CallOption) (*JoinRes, error)
 	Login(ctx context.Context, in *User, opts ...grpc.CallOption) (*LoginRes, error)
 	ListUsers(ctx context.Context, in *ListUsersReq, opts ...grpc.CallOption) (*ListUsersRes, error)
-	BroadcastMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Shutdown, error)
 }
 
 type broadcastClient struct {
@@ -38,31 +37,30 @@ func NewBroadcastClient(cc grpc.ClientConnInterface) BroadcastClient {
 	return &broadcastClient{cc}
 }
 
-func (c *broadcastClient) CreateGroupStream(ctx context.Context, in *CreateGroup, opts ...grpc.CallOption) (Broadcast_CreateGroupStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Broadcast_ServiceDesc.Streams[0], "/chat.Broadcast/CreateGroupStream", opts...)
+func (c *broadcastClient) Stream(ctx context.Context, opts ...grpc.CallOption) (Broadcast_StreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Broadcast_ServiceDesc.Streams[0], "/chat.Broadcast/Stream", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &broadcastCreateGroupStreamClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
+	x := &broadcastStreamClient{stream}
 	return x, nil
 }
 
-type Broadcast_CreateGroupStreamClient interface {
+type Broadcast_StreamClient interface {
+	Send(*Message) error
 	Recv() (*Message, error)
 	grpc.ClientStream
 }
 
-type broadcastCreateGroupStreamClient struct {
+type broadcastStreamClient struct {
 	grpc.ClientStream
 }
 
-func (x *broadcastCreateGroupStreamClient) Recv() (*Message, error) {
+func (x *broadcastStreamClient) Send(m *Message) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *broadcastStreamClient) Recv() (*Message, error) {
 	m := new(Message)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -70,68 +68,22 @@ func (x *broadcastCreateGroupStreamClient) Recv() (*Message, error) {
 	return m, nil
 }
 
-func (c *broadcastClient) DirectMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (Broadcast_DirectMessageClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Broadcast_ServiceDesc.Streams[1], "/chat.Broadcast/DirectMessage", opts...)
+func (c *broadcastClient) CreateGroup(ctx context.Context, in *CreateGroupReq, opts ...grpc.CallOption) (*CreateResponse, error) {
+	out := new(CreateResponse)
+	err := c.cc.Invoke(ctx, "/chat.Broadcast/CreateGroup", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &broadcastDirectMessageClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
+	return out, nil
 }
 
-type Broadcast_DirectMessageClient interface {
-	Recv() (*Message, error)
-	grpc.ClientStream
-}
-
-type broadcastDirectMessageClient struct {
-	grpc.ClientStream
-}
-
-func (x *broadcastDirectMessageClient) Recv() (*Message, error) {
-	m := new(Message)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *broadcastClient) JoinGroup(ctx context.Context, in *JoinGroupReq, opts ...grpc.CallOption) (Broadcast_JoinGroupClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Broadcast_ServiceDesc.Streams[2], "/chat.Broadcast/JoinGroup", opts...)
+func (c *broadcastClient) JoinGroup(ctx context.Context, in *JoinReq, opts ...grpc.CallOption) (*JoinRes, error) {
+	out := new(JoinRes)
+	err := c.cc.Invoke(ctx, "/chat.Broadcast/JoinGroup", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &broadcastJoinGroupClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type Broadcast_JoinGroupClient interface {
-	Recv() (*Message, error)
-	grpc.ClientStream
-}
-
-type broadcastJoinGroupClient struct {
-	grpc.ClientStream
-}
-
-func (x *broadcastJoinGroupClient) Recv() (*Message, error) {
-	m := new(Message)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
+	return out, nil
 }
 
 func (c *broadcastClient) Login(ctx context.Context, in *User, opts ...grpc.CallOption) (*LoginRes, error) {
@@ -152,25 +104,15 @@ func (c *broadcastClient) ListUsers(ctx context.Context, in *ListUsersReq, opts 
 	return out, nil
 }
 
-func (c *broadcastClient) BroadcastMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Shutdown, error) {
-	out := new(Shutdown)
-	err := c.cc.Invoke(ctx, "/chat.Broadcast/BroadcastMessage", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // BroadcastServer is the server API for Broadcast service.
 // All implementations must embed UnimplementedBroadcastServer
 // for forward compatibility
 type BroadcastServer interface {
-	CreateGroupStream(*CreateGroup, Broadcast_CreateGroupStreamServer) error
-	DirectMessage(*Message, Broadcast_DirectMessageServer) error
-	JoinGroup(*JoinGroupReq, Broadcast_JoinGroupServer) error
+	Stream(Broadcast_StreamServer) error
+	CreateGroup(context.Context, *CreateGroupReq) (*CreateResponse, error)
+	JoinGroup(context.Context, *JoinReq) (*JoinRes, error)
 	Login(context.Context, *User) (*LoginRes, error)
 	ListUsers(context.Context, *ListUsersReq) (*ListUsersRes, error)
-	BroadcastMessage(context.Context, *Message) (*Shutdown, error)
 	mustEmbedUnimplementedBroadcastServer()
 }
 
@@ -178,23 +120,20 @@ type BroadcastServer interface {
 type UnimplementedBroadcastServer struct {
 }
 
-func (UnimplementedBroadcastServer) CreateGroupStream(*CreateGroup, Broadcast_CreateGroupStreamServer) error {
-	return status.Errorf(codes.Unimplemented, "method CreateGroupStream not implemented")
+func (UnimplementedBroadcastServer) Stream(Broadcast_StreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method Stream not implemented")
 }
-func (UnimplementedBroadcastServer) DirectMessage(*Message, Broadcast_DirectMessageServer) error {
-	return status.Errorf(codes.Unimplemented, "method DirectMessage not implemented")
+func (UnimplementedBroadcastServer) CreateGroup(context.Context, *CreateGroupReq) (*CreateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateGroup not implemented")
 }
-func (UnimplementedBroadcastServer) JoinGroup(*JoinGroupReq, Broadcast_JoinGroupServer) error {
-	return status.Errorf(codes.Unimplemented, "method JoinGroup not implemented")
+func (UnimplementedBroadcastServer) JoinGroup(context.Context, *JoinReq) (*JoinRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method JoinGroup not implemented")
 }
 func (UnimplementedBroadcastServer) Login(context.Context, *User) (*LoginRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Login not implemented")
 }
 func (UnimplementedBroadcastServer) ListUsers(context.Context, *ListUsersReq) (*ListUsersRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListUsers not implemented")
-}
-func (UnimplementedBroadcastServer) BroadcastMessage(context.Context, *Message) (*Shutdown, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BroadcastMessage not implemented")
 }
 func (UnimplementedBroadcastServer) mustEmbedUnimplementedBroadcastServer() {}
 
@@ -209,67 +148,66 @@ func RegisterBroadcastServer(s grpc.ServiceRegistrar, srv BroadcastServer) {
 	s.RegisterService(&Broadcast_ServiceDesc, srv)
 }
 
-func _Broadcast_CreateGroupStream_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(CreateGroup)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(BroadcastServer).CreateGroupStream(m, &broadcastCreateGroupStreamServer{stream})
+func _Broadcast_Stream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(BroadcastServer).Stream(&broadcastStreamServer{stream})
 }
 
-type Broadcast_CreateGroupStreamServer interface {
+type Broadcast_StreamServer interface {
 	Send(*Message) error
+	Recv() (*Message, error)
 	grpc.ServerStream
 }
 
-type broadcastCreateGroupStreamServer struct {
+type broadcastStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *broadcastCreateGroupStreamServer) Send(m *Message) error {
+func (x *broadcastStreamServer) Send(m *Message) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func _Broadcast_DirectMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
+func (x *broadcastStreamServer) Recv() (*Message, error) {
 	m := new(Message)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
 	}
-	return srv.(BroadcastServer).DirectMessage(m, &broadcastDirectMessageServer{stream})
+	return m, nil
 }
 
-type Broadcast_DirectMessageServer interface {
-	Send(*Message) error
-	grpc.ServerStream
-}
-
-type broadcastDirectMessageServer struct {
-	grpc.ServerStream
-}
-
-func (x *broadcastDirectMessageServer) Send(m *Message) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _Broadcast_JoinGroup_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(JoinGroupReq)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
+func _Broadcast_CreateGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateGroupReq)
+	if err := dec(in); err != nil {
+		return nil, err
 	}
-	return srv.(BroadcastServer).JoinGroup(m, &broadcastJoinGroupServer{stream})
+	if interceptor == nil {
+		return srv.(BroadcastServer).CreateGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/chat.Broadcast/CreateGroup",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BroadcastServer).CreateGroup(ctx, req.(*CreateGroupReq))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
-type Broadcast_JoinGroupServer interface {
-	Send(*Message) error
-	grpc.ServerStream
-}
-
-type broadcastJoinGroupServer struct {
-	grpc.ServerStream
-}
-
-func (x *broadcastJoinGroupServer) Send(m *Message) error {
-	return x.ServerStream.SendMsg(m)
+func _Broadcast_JoinGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(JoinReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BroadcastServer).JoinGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/chat.Broadcast/JoinGroup",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BroadcastServer).JoinGroup(ctx, req.(*JoinReq))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Broadcast_Login_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -308,24 +246,6 @@ func _Broadcast_ListUsers_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Broadcast_BroadcastMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Message)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BroadcastServer).BroadcastMessage(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/chat.Broadcast/BroadcastMessage",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BroadcastServer).BroadcastMessage(ctx, req.(*Message))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // Broadcast_ServiceDesc is the grpc.ServiceDesc for Broadcast service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -334,6 +254,14 @@ var Broadcast_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*BroadcastServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "CreateGroup",
+			Handler:    _Broadcast_CreateGroup_Handler,
+		},
+		{
+			MethodName: "JoinGroup",
+			Handler:    _Broadcast_JoinGroup_Handler,
+		},
+		{
 			MethodName: "Login",
 			Handler:    _Broadcast_Login_Handler,
 		},
@@ -341,26 +269,13 @@ var Broadcast_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "ListUsers",
 			Handler:    _Broadcast_ListUsers_Handler,
 		},
-		{
-			MethodName: "BroadcastMessage",
-			Handler:    _Broadcast_BroadcastMessage_Handler,
-		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "CreateGroupStream",
-			Handler:       _Broadcast_CreateGroupStream_Handler,
+			StreamName:    "Stream",
+			Handler:       _Broadcast_Stream_Handler,
 			ServerStreams: true,
-		},
-		{
-			StreamName:    "DirectMessage",
-			Handler:       _Broadcast_DirectMessage_Handler,
-			ServerStreams: true,
-		},
-		{
-			StreamName:    "JoinGroup",
-			Handler:       _Broadcast_JoinGroup_Handler,
-			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "proto/chat.proto",

@@ -8,6 +8,6 @@ import "github.com/ramble-cult/clhi/cmd"
 func main() {
 	cmd.Execute()
 	// ctx := services.SignalContext(context.Background())
-	// services.Server("0.0.0.0:50051", "swag").Start(ctx)
 	// fmt.Println(services.Client("0.0.0.0:50051", "swag", "caleb").Start(ctx))
+	// services.Server("0.0.0.0:50051", "swag").Start(ctx)
 }

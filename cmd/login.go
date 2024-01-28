@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/manifoldco/promptui"
 	"github.com/ramble-cult/clhi/services"
 	"github.com/spf13/cobra"
 )
@@ -11,6 +13,8 @@ var (
 	host     string
 	password string
 	username string
+	Client   *services.Client
+	Ctx      context.Context
 )
 
 func init() {
@@ -25,7 +29,23 @@ var login = &cobra.Command{
 	Short: "log into server",
 	Long:  `log into server -H <host> -u <username> -p <password>`,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := services.SignalContext(context.Background())
-		services.Client(host, password, username).Start(ctx)
+		namePrompt := promptui.Prompt{
+			Label: "username",
+		}
+		u, err := namePrompt.Run()
+		if err != nil {
+			fmt.Println(err)
+		}
+		username = u
+		passPrompt := promptui.Prompt{
+			Label: "password",
+		}
+		p, err := passPrompt.Run()
+		if err != nil {
+			fmt.Println(err)
+		}
+		password = p
+		Ctx = context.Background()
+		services.NewClient(host, password, username).Start(Ctx)
 	},
 }

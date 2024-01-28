@@ -24,7 +24,7 @@ message ListUsersRes {
   repeated UserResponse users = 1;
 }
 
-message CreateGroup {
+message CreateGroupReq {
   string name = 1;
   string password = 2;
   repeated string users = 3;
@@ -37,14 +37,19 @@ message ListUsersReq {
 message ListGroups {
   string token = 1;
 }
-message JoinGroupReq {
+
+message JoinReq {
   string name = 1;
   string user = 2;
 }
+
+message JoinRes {
+  string message = 1;
+}
+
 message LeaveGroup {
   string token = 1;
 }
-
 
 message CreateResponse {
   string message = 1;
@@ -59,12 +64,11 @@ message Message {
 }
 
 service Broadcast {
-  rpc CreateGroupStream(CreateGroup) returns (stream Message);
-  rpc DirectMessage(Message) returns (stream Message);
-  rpc JoinGroup(JoinGroupReq) returns (stream Message);
+  rpc Stream(stream Message) returns (stream Message);
+  rpc CreateGroup(CreateGroupReq) returns (CreateResponse);
+  rpc JoinGroup(JoinReq) returns (JoinRes);
   rpc Login(User) returns (LoginRes);
   rpc ListUsers(ListUsersReq) returns (ListUsersRes);
-  rpc BroadcastMessage(Message) returns (Shutdown);
 }
 
 
