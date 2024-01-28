@@ -66,8 +66,13 @@ func (c *Client) Start(ctx context.Context) error {
 				fmt.Println(v)
 			}
 		case "c":
-
-			_, err = c.BroadcastClient.CreateGroup(ctx, &chat.CreateGroupReq{Name: "test", Password: "test", Users: []string{}})
+			var newGroup string
+			fmt.Println("Enter group name: ")
+			fmt.Scanln(&newGroup)
+			var newPassword string
+			fmt.Println("Enter group password: ")
+			fmt.Scanln(&newGroup)
+			_, err = c.BroadcastClient.CreateGroup(ctx, &chat.CreateGroupReq{Name: newGroup, Password: newPassword, Users: []string{}})
 			if err != nil {
 				fmt.Println("Error creating group:", err)
 				return err
@@ -76,7 +81,7 @@ func (c *Client) Start(ctx context.Context) error {
 		case "j":
 			fmt.Println("Enter group name to join: ")
 			fmt.Scanln(&c.GroupName)
-			_, err := c.BroadcastClient.JoinGroup(ctx, &chat.JoinReq{Name: "test", User: c.Name})
+			_, err := c.BroadcastClient.JoinGroup(ctx, &chat.JoinReq{Name: c.GroupName, User: c.Name})
 			if err != nil {
 				fmt.Println("Error joining group:", err)
 			} else {
