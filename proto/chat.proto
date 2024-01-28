@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package chat;
+
+option go_package = "/chat";
+
+import "google/protobuf/timestamp.proto";
+
+message User {
+  string host = 1;
+  string name = 2;
+  string password = 3;
+}
+
+message LoginRes {
+  string token = 1;
+}
+
+message UserResponse {
+  string name = 1;
+}
+
+message ListUsersRes {
+  repeated UserResponse users = 1;
+}
+
+message CreateGroup {
+  string name = 1;
+  string password = 2;
+  repeated string users = 3;
+}
+
+message ListUsersReq {
+  string token = 1;
+}
+
+message ListGroups {
+  string token = 1;
+}
+message JoinGroupReq {
+  string name = 1;
+  string user = 2;
+}
+message LeaveGroup {
+  string token = 1;
+}
+
+
+message CreateResponse {
+  string message = 1;
+}
+
+message Shutdown {}
+
+message Message {
+  string username = 1;
+  string message = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+service Broadcast {
+  rpc CreateGroupStream(CreateGroup) returns (stream Message);
+  rpc DirectMessage(Message) returns (stream Message);
+  rpc JoinGroup(JoinGroupReq) returns (stream Message);
+  rpc Login(User) returns (LoginRes);
+  rpc ListUsers(ListUsersReq) returns (ListUsersRes);
+  rpc BroadcastMessage(Message) returns (Shutdown);
+}
+
+
+
