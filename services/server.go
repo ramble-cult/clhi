@@ -14,6 +14,7 @@ import (
 
 	guuid "github.com/google/uuid"
 	chat "github.com/ramble-cult/clhi/proto"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -27,12 +28,10 @@ type user struct {
 }
 
 type group struct {
-	chat.UnimplementedBroadcastServer
 	Broadcast chan *chat.Message
 	Password  string
 	Name      string
 	Users     map[string]*user
-	Error     chan error
 	mu        sync.RWMutex
 }
 
@@ -118,10 +117,11 @@ func (s *server) CreateGroup(ctx context.Context, req *chat.CreateGroupReq) (*ch
 		Password:  req.Password,
 		Name:      req.Name,
 		Users:     users,
-		Error:     make(chan error),
 	}
 
 	s.Groups[req.Name] = convo
+
+	go convo.broadcast(ctx)
 
 	return &chat.CreateResponse{Message: "room created"}, nil
 }
@@ -155,8 +155,6 @@ func (s *server) JoinGroup(ctx context.Context, req *chat.JoinReq) (*chat.JoinRe
 	group.mu.Lock()
 	defer group.mu.Unlock()
 	group.Users[token] = user
-
-	go group.broadcast(ctx)
 
 	return &chat.JoinRes{Message: "successfully joined"}, nil
 }
@@ -208,28 +206,51 @@ func (s *server) Stream(srv chat.Broadcast_StreamServer) error {
 		return status.Error(codes.Unauthenticated, "missing group name")
 	}
 
-	if _, ok := g.Users[token]; !ok {
+	u, ok := g.Users[token]
+	if !ok {
 		return status.Error(codes.Unauthenticated, "missing token")
 	}
 
-	go g.sendBroadcasts(srv, token)
+	errs, ctx := errgroup.WithContext(srv.Context())
+	stream := u.stream
 
-	for {
-		req, err := srv.Recv()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return err
+	errs.Go(func() error {
+		for {
+			select {
+			case <-ctx.Done():
+			// none
+			case res := <-stream:
+				if s, ok := status.FromError(srv.Send(res)); ok {
+					switch s.Code() {
+					case codes.OK:
+					case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
+					default:
+					}
+				}
+			}
 		}
+	})
 
-		g.Broadcast <- &chat.Message{
-			Username: req.Username,
-			Message:  req.Message,
+	errs.Go(func() error {
+		for {
+			req, err := srv.Recv()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				return err
+			}
+
+			g.Broadcast <- &chat.Message{
+				Username: req.Username,
+				Message:  req.Message,
+			}
 		}
-	}
+		return nil
+	})
 
-	<-srv.Context().Done()
-	return srv.Context().Err()
+	// <-srv.Context().Done()
+	// return srv.Context().Err()
+	return errs.Wait()
 }
 
 func (g *group) broadcast(_ context.Context) {
@@ -244,29 +265,5 @@ func (g *group) broadcast(_ context.Context) {
 			}
 		}
 		g.mu.RUnlock()
-	}
-}
-
-func (g *group) sendBroadcasts(srv chat.Broadcast_StreamServer, tkn string) {
-	stream := g.Users[tkn].stream
-
-	for {
-		select {
-		case <-srv.Context().Done():
-			return
-		case res := <-stream:
-			if s, ok := status.FromError(srv.Send(res)); ok {
-				switch s.Code() {
-				case codes.OK:
-					// noop
-				case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
-
-					return
-				default:
-
-					return
-				}
-			}
-		}
 	}
 }
