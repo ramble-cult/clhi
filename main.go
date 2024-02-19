@@ -3,11 +3,17 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 */
 package main
 
-import "github.com/ramble-cult/clhi/cmd"
+import (
+	"github.com/ramble-cult/clhi/cmd"
+	"github.com/spf13/viper"
+)
 
 func main() {
+	viper.AddConfigPath(".")
+	viper.SetConfigName(".clhi") // Register config file name (no extension)
+	viper.SetConfigType("yaml")  // Look for specific type
+	viper.ReadInConfig()
+	viper.WatchConfig()
+
 	cmd.Execute()
-	// ctx := services.SignalContext(context.Background())
-	// fmt.Println(services.Client("0.0.0.0:50051", "swag", "caleb").Start(ctx))
-	// services.Server("0.0.0.0:50051", "swag").Start(ctx)
 }

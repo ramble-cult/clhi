@@ -131,9 +131,9 @@ func (s *server) JoinGroup(ctx context.Context, req *chat.JoinReq) (*chat.JoinRe
 	if !ok {
 		return nil, errors.New("invalid token")
 	}
+	fmt.Println(md)
 
 	token := md["user-token"][0]
-
 	group, ok := s.Groups[req.Name]
 	if !ok {
 		return nil, errors.New("group not found")
@@ -205,7 +205,6 @@ func (s *server) Stream(srv chat.Broadcast_StreamServer) error {
 	if !ok {
 		return status.Error(codes.Unauthenticated, "missing group name")
 	}
-
 	u, ok := g.Users[token]
 	if !ok {
 		return status.Error(codes.Unauthenticated, "missing token")

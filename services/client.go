@@ -32,6 +32,72 @@ func NewClient(host, pass, name string) *Client {
 	}
 }
 
+func (c *Client) Login(username, password string) (*grpc.ClientConn, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, c.Host, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	c.BroadcastClient = chat.NewBroadcastClient(conn)
+	t, err := c.login(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	c.Token = t
+
+	return conn, nil
+}
+
+func (c *Client) CreateGroupCmd(group string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, c.Host, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	md := metadata.New(map[string]string{"user-token": c.Token})
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	c.BroadcastClient = chat.NewBroadcastClient(conn)
+	err = c.CreateGroup(ctx, group)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) JoinGroupCmd(group string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, c.Host, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	c.BroadcastClient = chat.NewBroadcastClient(conn)
+
+	md := metadata.New(map[string]string{"user-token": c.Token})
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	c.BroadcastClient.JoinGroup(ctx, &chat.JoinReq{Name: group, User: c.Name})
+	err = c.Stream(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *Client) Start(ctx context.Context) error {
 	connCtx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
@@ -91,7 +157,7 @@ func (c *Client) Start(ctx context.Context) error {
 		}
 	}
 
-	err = c.stream(ctx)
+	err = c.Stream(ctx)
 
 	// _, err = c.BroadcastClient.CreateGroup(ctx, &chat.CreateGroupReq{Name: "test", Password: "test", Users: []string{}})
 	// c.GroupName = "test"
@@ -105,7 +171,7 @@ func (c *Client) Start(ctx context.Context) error {
 
 func (c *Client) JoinGroup(ctx context.Context, group string) error {
 	c.BroadcastClient.JoinGroup(ctx, &chat.JoinReq{Name: group, User: c.Name})
-	err := c.stream(ctx)
+	err := c.Stream(ctx)
 
 	return err
 }
@@ -148,7 +214,7 @@ func (c *Client) login(ctx context.Context) (string, error) {
 	return res.Token, nil
 }
 
-func (c *Client) stream(ctx context.Context) error {
+func (c *Client) Stream(ctx context.Context) error {
 	md := metadata.New(map[string]string{"user-token": c.Token, "user-group": c.GroupName})
 	ctx = metadata.NewOutgoingContext(ctx, md)
 	ctx, cancel := context.WithCancel(ctx)
