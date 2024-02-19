@@ -5,12 +5,13 @@ import (
 	"fmt"
 
 	"github.com/manifoldco/promptui"
+	chat "github.com/ramble-cult/clhi/proto"
 	"github.com/ramble-cult/clhi/services"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
-	host     string
 	password string
 	username string
 	Client   *services.Client
@@ -18,7 +19,6 @@ var (
 )
 
 func init() {
-	login.Flags().StringVarP(&host, "host", "H", "0.0.0.0:50051", "Chat server host")
 	login.Flags().StringVarP(&password, "password", "p", "", "User password")
 	login.Flags().StringVarP(&username, "username", "u", "", "Username")
 	rootCmd.AddCommand(login)
@@ -44,8 +44,14 @@ var login = &cobra.Command{
 		if err != nil {
 			fmt.Println(err)
 		}
-		password = p
-		Ctx = context.Background()
-		services.NewClient(host, password, username).Start(Ctx)
+
+		c := viper.Get("client").(chat.BroadcastClient)
+		ctx := viper.Get("context").(context.Context)
+		c.Login(ctx, &chat.User{
+			Host:     host,
+			Name:     u,
+			Password: p,
+		})
+
 	},
 }

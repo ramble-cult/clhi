@@ -9,12 +9,10 @@ import (
 )
 
 var (
-	serverHost     string
 	serverPassword string
 )
 
 func init() {
-	serve.Flags().StringVarP(&serverHost, "serverhost", "H", "0.0.0.0:50051", "server host")
 	serve.Flags().StringVarP(&serverPassword, "password", "p", "", "server password")
 	rootCmd.AddCommand(serve)
 }
@@ -25,7 +23,7 @@ var serve = &cobra.Command{
 	Long:  `serve -H <host> -p <password>`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := services.SignalContext(context.Background())
-		services.Server(serverHost, serverPassword).Start(ctx)
+		services.Server(host, serverPassword).Start(ctx)
 		fmt.Println("starting server")
 	},
 }
