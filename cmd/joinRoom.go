@@ -13,12 +13,15 @@ import (
 	chat "github.com/ramble-cult/clhi/proto"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
 func init() {
 	rootCmd.AddCommand(joinRoom)
 }
+
+var user string
 
 var joinRoom = &cobra.Command{
 	Use:   "join",
@@ -33,29 +36,27 @@ var joinRoom = &cobra.Command{
 			fmt.Println(err)
 		}
 
-		c := viper.Get("Client").(chat.BroadcastClient)
-		viper.ReadInConfig()
-		t := viper.GetViper().GetString("user-token")
-		u := viper.GetString("User")
-
-		ctx := viper.Get("context").(context.Context)
+		t := viper.GetString("user-token")
+		user = viper.GetString("user")
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		md := metadata.New(map[string]string{"user-token": t})
 		ctx = metadata.NewOutgoingContext(ctx, md)
 
+		conn, err := grpc.DialContext(ctx, host, grpc.WithInsecure(), grpc.WithBlock())
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		c := chat.NewBroadcastClient(conn)
+
 		c.JoinGroup(ctx, &chat.JoinReq{
 			Name: group,
-			User: u,
+			User: user,
 		})
 
 		md = metadata.New(map[string]string{"user-token": t, "user-group": group})
 		ctx = metadata.NewOutgoingContext(ctx, md)
-
-		client, err := c.Stream(ctx)
-		if err != nil {
-			fmt.Println("error connecting to stream")
-			return
-		}
-		defer client.CloseSend()
 
 		err = stream(ctx, c)
 		if err != nil {
@@ -75,32 +76,29 @@ func stream(ctx context.Context, c chat.BroadcastClient) error {
 	defer client.CloseSend()
 
 	fmt.Printf("%v connected to stream", time.Now())
-	return sendAndReceive(ctx, client)
-}
-
-func sendAndReceive(ctx context.Context, client chat.Broadcast_StreamClient) error {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("recovered from panic:", r)
-		}
-	}()
-
 	go send(client)
 	return receive(client)
 }
 
 func send(client chat.Broadcast_StreamClient) {
-	user := viper.GetString("User")
 	sc := bufio.NewScanner(os.Stdin)
-	for sc.Scan() {
-		msg := sc.Text()
-		if err := client.Send(&chat.Message{Username: user, Message: msg}); err != nil {
-			log.Printf("failed to send message: %v", err)
-			break
+	sc.Split(bufio.ScanLines)
+
+	for {
+		select {
+		case <-client.Context().Done():
+			// DebugLogf("client send loop disconnected")
+		default:
+			if sc.Scan() {
+				if err := client.Send(&chat.Message{Username: user, Message: sc.Text()}); err != nil {
+					// ClientLogf(time.Now(), "failed to send message: %v", err)
+					return
+				}
+			} else {
+				// ClientLogf(time.Now(), "input scanner failure: %v", sc.Err())
+				return
+			}
 		}
-	}
-	if err := sc.Err(); err != nil {
-		log.Printf("input scanner failure: %v", err)
 	}
 }
 

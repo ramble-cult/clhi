@@ -63,9 +63,6 @@ var login = &cobra.Command{
 
 		client := chat.NewBroadcastClient(conn)
 
-		viper.SetDefault("Connection", conn)
-		viper.SetDefault("Client", client)
-
 		res, err := client.Login(ctx, &chat.User{
 			Host:     h,
 			Password: p,
@@ -80,8 +77,8 @@ var login = &cobra.Command{
 		}
 
 		viper.Set("user-token", t)
-		viper.Set("User", u)
-		viper.Set("Password", p)
+		viper.Set("user", u)
+		viper.Set("password", p)
 
 		viper.WriteConfig()
 	},

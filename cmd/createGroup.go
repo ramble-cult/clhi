@@ -3,12 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/manifoldco/promptui"
 	chat "github.com/ramble-cult/clhi/proto"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"google.golang.org/grpc"
 )
 
 func init() {
@@ -28,9 +27,14 @@ var createGroup = &cobra.Command{
 			fmt.Println(err)
 		}
 
-		c := viper.Get("Client").(chat.BroadcastClient)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
+		ctx := context.Background()
+
+		conn, err := grpc.DialContext(ctx, host, grpc.WithInsecure(), grpc.WithBlock())
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		c := chat.NewBroadcastClient(conn)
 
 		_, err = c.CreateGroup(ctx, &chat.CreateGroupReq{Name: g, Password: "test", Users: []string{}})
 		if err != nil {

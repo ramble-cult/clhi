@@ -45,51 +45,7 @@ func Execute() {
 	}
 }
 
-func initConfig() {
-	// if cfgFile != "" {
-	// 	// Use config file from the flag.
-	// 	viper.SetConfigFile(cfgFile)
-	// } else {
-	// 	// Find home directory.
-	// 	home, err := os.UserHomeDir()
-	// 	cobra.CheckErr(err)
-
-	// 	// Search config in home directory with name ".cobra" (without extension).
-	// 	viper.AddConfigPath(home)
-	// 	viper.SetConfigType("yaml")
-	// 	viper.SetConfigName(".cobra")
-	// }
-
-	// viper.AutomaticEnv()
-
-	// err := viper.ReadInConfig()
-
-	// notFound := &viper.ConfigFileNotFoundError{}
-	// switch {
-	// case err != nil && !errors.As(err, notFound):
-	// 	cobra.CheckErr(err)
-	// case err != nil && errors.As(err, notFound):
-	// 	// The config file is optional, we shouldn't exit when the config is not found
-	// 	break
-	// default:
-	// 	fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
-	// }
-	// ctx := context.Background()
-
-	// conn, err := grpc.DialContext(ctx, host, grpc.WithInsecure(), grpc.WithBlock())
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-
-	// client := chat.NewBroadcastClient(conn)
-
-	// viper.Set("Connection", conn)
-	// viper.Set("Client", client)
-
-}
-
 func init() {
-	// cobra.OnInitialize(initConfig)
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
