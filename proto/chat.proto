@@ -4,7 +4,7 @@ package chat;
 
 option go_package = "/chat";
 
-import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 message User {
   string host = 1;
@@ -24,18 +24,14 @@ message ListUsersRes {
   repeated UserResponse users = 1;
 }
 
+message ListGroupsRes {
+  repeated string groups = 1;
+}
+
 message CreateGroupReq {
   string name = 1;
   string password = 2;
   repeated string users = 3;
-}
-
-message ListUsersReq {
-  string token = 1;
-}
-
-message ListGroups {
-  string token = 1;
 }
 
 message JoinReq {
@@ -60,7 +56,6 @@ message Shutdown {}
 message Message {
   string username = 1;
   string message = 2;
-  google.protobuf.Timestamp timestamp = 3;
 }
 
 service Broadcast {
@@ -68,7 +63,8 @@ service Broadcast {
   rpc CreateGroup(CreateGroupReq) returns (CreateResponse);
   rpc JoinGroup(JoinReq) returns (JoinRes);
   rpc Login(User) returns (LoginRes);
-  rpc ListUsers(ListUsersReq) returns (ListUsersRes);
+  rpc ListUsers(google.protobuf.Empty) returns (ListUsersRes);
+  rpc ListGroups(google.protobuf.Empty) returns (ListGroupsRes);
 }
 
 

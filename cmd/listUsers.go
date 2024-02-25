@@ -9,7 +9,8 @@ import (
 
 	chat "github.com/ramble-cult/clhi/proto"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // listUsersCmd represents the listUsers command
@@ -23,9 +24,18 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		c := viper.Get("Client").(chat.BroadcastClient)
-		t := viper.GetString("Token")
-		u, err := c.ListUsers(context.Background(), &chat.ListUsersReq{Token: t})
+		ctx := context.Background()
+
+		conn, err := grpc.DialContext(ctx, host, grpc.WithInsecure(), grpc.WithBlock())
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		defer conn.Close()
+
+		c := chat.NewBroadcastClient(conn)
+		u, err := c.ListUsers(context.Background(), &emptypb.Empty{})
 		if err != nil {
 			return
 		}
@@ -33,8 +43,6 @@ to quickly create a Cobra application.`,
 		for _, v := range u.Users {
 			fmt.Println(v.Name)
 		}
-
-		return
 	},
 }
 

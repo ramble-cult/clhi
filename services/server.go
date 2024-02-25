@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type user struct {
@@ -74,7 +75,7 @@ func (s *server) Login(ctx context.Context, u *chat.User) (*chat.LoginRes, error
 	return &chat.LoginRes{Token: uid}, nil
 }
 
-func (s *server) ListUsers(context.Context, *chat.ListUsersReq) (*chat.ListUsersRes, error) {
+func (s *server) ListUsers(context.Context, *emptypb.Empty) (*chat.ListUsersRes, error) {
 	u := &chat.ListUsersRes{}
 	for _, v := range s.OnlineUsers {
 		u.Users = append(u.Users, &chat.UserResponse{
@@ -83,6 +84,15 @@ func (s *server) ListUsers(context.Context, *chat.ListUsersReq) (*chat.ListUsers
 	}
 
 	return u, nil
+}
+
+func (s *server) ListGroups(context.Context, *emptypb.Empty) (*chat.ListGroupsRes, error) {
+	res := &chat.ListGroupsRes{}
+	for _, v := range s.Groups {
+		res.Groups = append(res.Groups, v.Name)
+	}
+
+	return res, nil
 }
 
 func (s *server) CreateGroup(ctx context.Context, req *chat.CreateGroupReq) (*chat.CreateResponse, error) {
@@ -131,7 +141,6 @@ func (s *server) JoinGroup(ctx context.Context, req *chat.JoinReq) (*chat.JoinRe
 	if !ok {
 		return nil, errors.New("invalid token")
 	}
-	fmt.Println(md)
 
 	token := md["user-token"][0]
 	group, ok := s.Groups[req.Name]
@@ -256,11 +265,14 @@ func (g *group) broadcast(_ context.Context) {
 	for res := range g.Broadcast {
 		g.mu.RLock()
 		for _, u := range g.Users {
-			select {
-			case u.stream <- res:
-				// keep stream open
-			default:
-				fmt.Printf("%v client stream full, dropping message", time.Now())
+			if res.Username != u.name {
+
+				select {
+				case u.stream <- res:
+					// keep stream open
+				default:
+					fmt.Printf("%v client stream full, dropping message", time.Now())
+				}
 			}
 		}
 		g.mu.RUnlock()

@@ -23,24 +23,16 @@ examples and usage of using your application. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		// Display a prompt to select a command
-		commands := []string{"login", "join-room", "other-command"}
-		for _, c := range commands {
-			fmt.Printf(c)
-		}
-	},
-	// PersistentPostRun: func(cmd *cobra.Command, args []string) {
-	// 	conn := viper.Get("Connection").(*grpc.ClientConn)
-	// 	defer conn.Close()
+	// Run: func(cmd *cobra.Command, args []string) {
+	// 	// Display a prompt to select a command
 	// },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -51,9 +43,8 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.clhi.yaml)")
-	rootCmd.PersistentFlags().StringVar(&host, "host", "0.0.0.0:50051", "chat server host (default is 0.0.0.0:50051)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

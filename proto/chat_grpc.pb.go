@@ -11,6 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -26,7 +27,8 @@ type BroadcastClient interface {
 	CreateGroup(ctx context.Context, in *CreateGroupReq, opts ...grpc.CallOption) (*CreateResponse, error)
 	JoinGroup(ctx context.Context, in *JoinReq, opts ...grpc.CallOption) (*JoinRes, error)
 	Login(ctx context.Context, in *User, opts ...grpc.CallOption) (*LoginRes, error)
-	ListUsers(ctx context.Context, in *ListUsersReq, opts ...grpc.CallOption) (*ListUsersRes, error)
+	ListUsers(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListUsersRes, error)
+	ListGroups(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListGroupsRes, error)
 }
 
 type broadcastClient struct {
@@ -95,9 +97,18 @@ func (c *broadcastClient) Login(ctx context.Context, in *User, opts ...grpc.Call
 	return out, nil
 }
 
-func (c *broadcastClient) ListUsers(ctx context.Context, in *ListUsersReq, opts ...grpc.CallOption) (*ListUsersRes, error) {
+func (c *broadcastClient) ListUsers(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListUsersRes, error) {
 	out := new(ListUsersRes)
 	err := c.cc.Invoke(ctx, "/chat.Broadcast/ListUsers", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *broadcastClient) ListGroups(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListGroupsRes, error) {
+	out := new(ListGroupsRes)
+	err := c.cc.Invoke(ctx, "/chat.Broadcast/ListGroups", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +123,8 @@ type BroadcastServer interface {
 	CreateGroup(context.Context, *CreateGroupReq) (*CreateResponse, error)
 	JoinGroup(context.Context, *JoinReq) (*JoinRes, error)
 	Login(context.Context, *User) (*LoginRes, error)
-	ListUsers(context.Context, *ListUsersReq) (*ListUsersRes, error)
+	ListUsers(context.Context, *emptypb.Empty) (*ListUsersRes, error)
+	ListGroups(context.Context, *emptypb.Empty) (*ListGroupsRes, error)
 	mustEmbedUnimplementedBroadcastServer()
 }
 
@@ -132,8 +144,11 @@ func (UnimplementedBroadcastServer) JoinGroup(context.Context, *JoinReq) (*JoinR
 func (UnimplementedBroadcastServer) Login(context.Context, *User) (*LoginRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Login not implemented")
 }
-func (UnimplementedBroadcastServer) ListUsers(context.Context, *ListUsersReq) (*ListUsersRes, error) {
+func (UnimplementedBroadcastServer) ListUsers(context.Context, *emptypb.Empty) (*ListUsersRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListUsers not implemented")
+}
+func (UnimplementedBroadcastServer) ListGroups(context.Context, *emptypb.Empty) (*ListGroupsRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListGroups not implemented")
 }
 func (UnimplementedBroadcastServer) mustEmbedUnimplementedBroadcastServer() {}
 
@@ -229,7 +244,7 @@ func _Broadcast_Login_Handler(srv interface{}, ctx context.Context, dec func(int
 }
 
 func _Broadcast_ListUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListUsersReq)
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -241,7 +256,25 @@ func _Broadcast_ListUsers_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: "/chat.Broadcast/ListUsers",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BroadcastServer).ListUsers(ctx, req.(*ListUsersReq))
+		return srv.(BroadcastServer).ListUsers(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Broadcast_ListGroups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BroadcastServer).ListGroups(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/chat.Broadcast/ListGroups",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BroadcastServer).ListGroups(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -268,6 +301,10 @@ var Broadcast_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListUsers",
 			Handler:    _Broadcast_ListUsers_Handler,
+		},
+		{
+			MethodName: "ListGroups",
+			Handler:    _Broadcast_ListGroups_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

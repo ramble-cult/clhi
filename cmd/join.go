@@ -15,30 +15,25 @@ import (
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func init() {
-	rootCmd.AddCommand(joinRoom)
+	rootCmd.AddCommand(join)
 }
 
 var user string
 
-var joinRoom = &cobra.Command{
+var join = &cobra.Command{
 	Use:   "join",
 	Short: "log into server",
 	Long:  `log into server -H <host> -u <username> -p <password>`,
 	Run: func(cmd *cobra.Command, args []string) {
-		prompt := promptui.Prompt{
-			Label: "room name",
-		}
-		group, err := prompt.Run()
-		if err != nil {
-			fmt.Println(err)
-		}
-
 		t := viper.GetString("user-token")
 		user = viper.GetString("user")
+
 		ctx, cancel := context.WithCancel(context.Background())
+		defer ctx.Done()
 		defer cancel()
 		md := metadata.New(map[string]string{"user-token": t})
 		ctx = metadata.NewOutgoingContext(ctx, md)
@@ -48,7 +43,24 @@ var joinRoom = &cobra.Command{
 			fmt.Println(err)
 		}
 
+		defer conn.Close()
+
 		c := chat.NewBroadcastClient(conn)
+
+		res, err := c.ListGroups(ctx, &emptypb.Empty{})
+		if err != nil {
+			fmt.Println("error listing group", err)
+		}
+
+		groupPrompt := promptui.Select{
+			Label: "Available Groups",
+			Items: res.Groups,
+		}
+
+		_, group, err := groupPrompt.Run()
+		if err != nil {
+			fmt.Println(err)
+		}
 
 		c.JoinGroup(ctx, &chat.JoinReq{
 			Name: group,
@@ -64,7 +76,7 @@ var joinRoom = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("%v connected to stream", time.Now())
+		fmt.Printf("%v connected to stream \n", time.Now().Format("15:04"))
 	},
 }
 
@@ -75,7 +87,7 @@ func stream(ctx context.Context, c chat.BroadcastClient) error {
 	}
 	defer client.CloseSend()
 
-	fmt.Printf("%v connected to stream", time.Now())
+	fmt.Printf("%v connected to stream\n", time.Now().Format("15:04"))
 	go send(client)
 	return receive(client)
 }
@@ -83,6 +95,7 @@ func stream(ctx context.Context, c chat.BroadcastClient) error {
 func send(client chat.Broadcast_StreamClient) {
 	sc := bufio.NewScanner(os.Stdin)
 	sc.Split(bufio.ScanLines)
+	u := viper.GetString("user")
 
 	for {
 		select {
@@ -90,7 +103,7 @@ func send(client chat.Broadcast_StreamClient) {
 			// DebugLogf("client send loop disconnected")
 		default:
 			if sc.Scan() {
-				if err := client.Send(&chat.Message{Username: user, Message: sc.Text()}); err != nil {
+				if err := client.Send(&chat.Message{Username: u, Message: sc.Text()}); err != nil {
 					// ClientLogf(time.Now(), "failed to send message: %v", err)
 					return
 				}
@@ -115,6 +128,6 @@ func receive(sc chat.Broadcast_StreamClient) error {
 			return fmt.Errorf("error receiving message from server: %v", err)
 		}
 
-		log.Printf("%s: %s", res.Username, res.Message)
+		fmt.Printf("%s: %s\n", res.Username, res.Message)
 	}
 }
